@@ -224,15 +224,14 @@ def configure(env):
         src_subdirs.append("audio")
         src_subdirs.append("test")
         src_subdirs.append("sd_module")
+        #Build HTTP server
+        src_subdirs.append("http")
     if has_giomm:
         src_subdirs.append("service")
     if env["PLATFORM"]=="win32":
         src_subdirs.append("sapi")
     else:
         src_subdirs.append("include")
-        
-    #Build HTTP server
-    src_subdirs.append("http")
         
     return src_subdirs
 

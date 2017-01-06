@@ -100,49 +100,6 @@ namespace
   }
 }
 
-/*
-int main(int argc,const char* argv[])
-{
-  try
-    {
-      TCLAP::CmdLine cmd("Simple test of the synthesizer");
-      TCLAP::ValueArg<std::string> inpath_arg("i","input","input file",false,"-","path",cmd);
-      TCLAP::ValueArg<std::string> outpath_arg("o","output","output file",false,"","path",cmd);
-      TCLAP::SwitchArg ssml_switch("s","ssml","Process as ssml",cmd,false);
-      TCLAP::ValueArg<std::string> voice_arg("p","profile","voice profile",false,"","spec",cmd);
-      cmd.parse(argc,argv);
-      std::ifstream f_in;
-      if(inpath_arg.getValue()!="-")
-        {
-          f_in.open(inpath_arg.getValue().c_str());
-          if(!f_in.is_open())
-            throw std::runtime_error("Cannot open the input file");
-        }
-      audio_player player(outpath_arg.getValue());
-      smart_ptr<engine> eng(new engine);
-      voice_profile profile;
-      if(!voice_arg.getValue().empty())
-        profile=eng->create_voice_profile(voice_arg.getValue());
-      std::istreambuf_iterator<char> text_start(f_in.is_open()?f_in:std::cin);
-      std::istreambuf_iterator<char> text_end;
-      std::auto_ptr<document> doc;
-      if(ssml_switch.getValue())
-        doc=document::create_from_ssml(eng,text_start,text_end,profile);
-      else
-        doc=document::create_from_plain_text(eng,text_start,text_end,content_text,profile);
-      doc->set_owner(player);
-      doc->synthesize();
-      player.finish();
-      return 0;
-    }
-  catch(const std::exception& e)
-    {
-      std::cerr << e.what() << std::endl;
-      return -1;
-    }
-}
-*/
-
 #define LOG_HTTP 1
 #define MAX_QUERY_LENGTH 4096
 
@@ -151,8 +108,10 @@ smart_ptr<engine> eng(new engine());
 voice_profile* profile;
 
 std::string voiceQueryStr(MAX_QUERY_LENGTH, ' ');
+char voiceQueryStr_c[MAX_QUERY_LENGTH];
 
 static int event_handler(sb_Event *e) {
+
   if (e->type == SB_EV_REQUEST) {
     
     if (LOG_HTTP) {
@@ -163,9 +122,9 @@ static int event_handler(sb_Event *e) {
     
     try {
       
-      sb_get_var(e->stream, "say", (char*) voiceQueryStr.c_str(), MAX_QUERY_LENGTH);
+      sb_get_var(e->stream, "say", voiceQueryStr_c, MAX_QUERY_LENGTH);
       
-      size_t len = strlen(voiceQueryStr.c_str());
+      size_t len = strlen(voiceQueryStr_c);
       
       if (len == 0) {
         sb_send_status(e->stream, 404, "ERROR");
@@ -174,11 +133,10 @@ static int event_handler(sb_Event *e) {
         return SB_RES_OK;
       }
       
-      voiceQueryStr.resize(len);
+      voiceQueryStr = voiceQueryStr_c;
       
-      std::cout << "len:" << len << std::endl;
-      
-      std::cout << "say:" << voiceQueryStr.c_str() << std::endl;
+      //std::cout << "len:" << len << std::endl;
+      //std::cout << "say: " << voiceQueryStr.c_str() << " : " << voiceQueryStr.length() << std::endl;
       
       /*
       if(ssml_switch.getValue())
@@ -187,14 +145,14 @@ static int event_handler(sb_Event *e) {
         doc=document::create_from_plain_text(eng, text_start, text_end, content_text, profile);
       */
       
-      /*
       std::auto_ptr<document> doc;
       
-      doc = document::create_from_plain_text(eng, voiceQueryStr.begin(), voiceQueryStr.end(), RHVoice::content_text, profile);
+      doc = document::create_from_plain_text(eng, voiceQueryStr.begin(), voiceQueryStr.end(), RHVoice::content_text, *profile);
       
-      doc->set_owner(&player);
+      doc->set_owner(*player);
       doc->synthesize();
-      */
+      
+      player->finish();
       
     } catch (const std::exception& e) {
       std::cerr << e.what() << std::endl;
@@ -237,9 +195,8 @@ int main(int argc,const char* argv[]) {
   opt.handler = event_handler;
   
   // RHVoice init
-  player = new audio_player("-");
+  player = new audio_player("");
   profile = new voice_profile();
-  //eng = new engine();
   
   if(!voice_arg.getValue().empty()) {
     *profile = eng->create_voice_profile(voice_arg.getValue());
@@ -258,8 +215,8 @@ int main(int argc,const char* argv[]) {
   for (;;) {
     sb_poll_server(server, timeout_arg.getValue());
   }
-
-  player->finish();
+  
+  //player->finish();
   sb_close_server(server);
   return EXIT_SUCCESS;
 }
